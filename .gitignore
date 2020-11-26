@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# OUR ACTUAL PROJECT
+NWBData
