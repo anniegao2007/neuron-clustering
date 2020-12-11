@@ -21,6 +21,7 @@ def kmeans(X, k, thresh, itermax=300):
     old_labels = np.zeros((num_pts,k))
     for _ in range(itermax):
         dist_to_centroids = np.array([np.linalg.norm(X[x] - centroids, axis=1) for x in range(X.shape[0])])
+        dist_to_centroids = np.reshape(np.sum(dist_to_centroids, axis=1), (num_pts, 1)) / dist_to_centroids
         dist_to_centroids /= np.reshape(np.sum(dist_to_centroids, axis=1), (num_pts, 1))
         # todo: sample based on the probability, jittering kmeans or kmeans++
         labels = np.where(dist_to_centroids > thresh, 1, 0)
@@ -34,7 +35,7 @@ def kmeans(X, k, thresh, itermax=300):
         # if within_cluster_dist < best_distance:
         #     best_distance = within_cluster_dist
         #     best_labels = labels
-    return dist_to_centroids, centroids  # best_labels
+    return labels, centroids  # best_labels
 
 
 def kmeans_plusplus(X, k):
