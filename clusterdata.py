@@ -37,6 +37,23 @@ def kmeans(X, k, thresh, itermax=300):
         #     best_labels = labels
     return labels, centroids  # best_labels
 
+def cmeans(X, k, m=2, itermax=300):
+    num_pts, num_dims = X.shape;
+    coefs = np.random.random(size=[num_pts,k]) # random initial coefficients
+    centroids = np.empty((k, num_dims))  # find initial centroids
+    for j in range(centroids.shape[0]):
+        centroids[j] = np.sum(coefs[:,j][:,np.newaxis]*X,axis=0)/np.sum(coefs[:,j])
+    old_weights = np.zeros((num_pts,k))
+    for _ in range(itermax):
+        xc = np.array([np.linalg.norm(X-centroids[i],axis=1) for i in range(k)]).T
+        um = 1/(np.array([np.nansum(np.divide(np.tile(xc[:,j],(k,1)).T,xc)**(2/(m-1)),axis=1) \
+                          for j in range(k)]).T)
+        if np.linalg.norm(um - old_weights) == 0:
+            break
+        for j in range(centroids.shape[0]):
+            centroids[j] = np.sum(um[:,j][:,np.newaxis]*X,axis=0)/np.sum(um[:,j])
+        old_weights = um
+    return um, centroids  # best_labels
 
 def kmeans_plusplus(X, k):
     """kmeans_plusplus: initialization algorithm for kmeans
