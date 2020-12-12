@@ -1,6 +1,37 @@
 import numpy as np
 from scipy.spatial.distance import cdist, pdist, squareform
 
+def cmeans(X, k, m=2.0, ep=0.01, nrep=5, itermax=300):
+    best_distance = float('inf')
+    best_weights = []
+    best_centroids = []
+    num_pts = X.shape[0]
+    for _ in range(nrep):
+        # centroids = np.random.uniform(low=0.3, high=0.7, size=(k, X.shape[1]))  # randomly initialize weights
+        centroids = kmeans_plusplus(X, k) + np.random.normal(scale=0.2, size=(k, X.shape[1]))
+        old_weights = np.zeros((num_pts,k))
+        for _ in range(itermax):
+            dist_to_centroids = np.array([np.linalg.norm(X[x] - centroids, axis=1) for x in range(num_pts)])
+            weights = np.empty((num_pts,k))
+            for i in range(num_pts):
+                for j in range(k):
+                    weights[i,j] = 1.0 / (np.sum([(dist_to_centroids[i,j] / dist_to_centroids[i,k]) ** 2 for k in range(k)]))
+            # dist_to_centroids /= np.reshape(np.sum(dist_to_centroids, axis=1), (num_pts, 1))
+            # weights = 1.0 / ((dist_to_centroids * k) ** (2/(m-1)))
+            if np.linalg.norm(weights - old_weights) <= ep:  # think about this later
+                print('early stopping!')
+                break
+            for c in range(k):
+                centroids[c] = np.sum(X * weights[:,c][:,None], axis=0) / np.sum(weights[:,c])
+            old_weights = weights
+        within_cluster_dist = np.sum([weights[:,c] * np.linalg.norm(X - centroids[c]) for c in range(k)])
+        if within_cluster_dist < best_distance:
+            best_distance = within_cluster_dist
+            best_weights = weights
+            best_centroids = centroids
+    return best_weights, best_centroids  # best_labels
+
+
 def kmeans(X, k, thresh, itermax=300):
     """kmeans: cluster data into k partitions
 
@@ -170,7 +201,7 @@ def L(A, normalized=False):
 #     return L
 
 
-def SC(L, k, thresh=0.33, psi=None, itermax=300):
+def SC(L, k, psi=None, itermax=300):
     """SC: Perform spectral clustering 
             via the Ng method
     Args:
@@ -191,5 +222,5 @@ def SC(L, k, thresh=0.33, psi=None, itermax=300):
 
     # normalize your eigenvector rows
     psi_k /= np.linalg.norm(psi_k, axis=1)[:,None]
-    labels = kmeans(psi_k, k, thresh, itermax)
+    labels = cmeans(psi_k, k, itermax)
     return labels
