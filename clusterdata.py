@@ -17,7 +17,7 @@ def cmeans(X, k, m=2.0, ep=0.01, nrep=5, itermax=300):
                 for j in range(k):
                     weights[i,j] = 1.0 / (np.sum([(dist_to_centroids[i,j] / dist_to_centroids[i,k]) ** 2 for k in range(k)]))
             if np.linalg.norm(weights - old_weights) <= ep:  # think about this later
-                print('early stopping!')
+                # print('early stopping!')
                 break
             for c in range(k):
                 centroids[c] = np.sum(X * weights[:,c][:,None], axis=0) / np.sum(weights[:,c])
@@ -30,7 +30,7 @@ def cmeans(X, k, m=2.0, ep=0.01, nrep=5, itermax=300):
     return best_weights, best_centroids  # best_labels
 
 
-def kmeans(X, k, thresh, itermax=300):
+def kmeans(X, k, thresh=0.45, itermax=300):
     """kmeans: cluster data into k partitions
 
     Args:
@@ -45,8 +45,8 @@ def kmeans(X, k, thresh, itermax=300):
     # best_labels = []
     num_pts = X.shape[0]
     # for _ in range(nrep):
-    centroids = kmeans_plusplus(X, k)  # find your initial centroids
-    print(centroids)
+    centroids = kmeans_plusplus(X, k) + np.random.normal(scale=0.2, size=(k, X.shape[1]))  # find your initial centroids
+    # print(centroids)
     old_labels = np.zeros((num_pts,k))
     for _ in range(itermax):
         dist_to_centroids = np.array([np.linalg.norm(X[x] - centroids, axis=1) for x in range(X.shape[0])])
@@ -65,6 +65,39 @@ def kmeans(X, k, thresh, itermax=300):
         #     best_distance = within_cluster_dist
         #     best_labels = labels
     return labels, centroids  # best_labels
+
+def kmeans_vanilla(X, k, nrep=5, itermax=300):
+    """kmeans: cluster data into k partitions
+
+    Args:
+        X (n x d np.ndarray): input data, rows = points, cols = dimensions
+        k (int): Number of clusters to partition
+        nrep (int): Number of repetitions to average for final clustering 
+        itermax (int): Number of iterations to perform before terminating
+    Returns:
+        labels (n x 1 np.ndarray): Cluster labels assigned by kmeans
+    """
+    best_distance = float('inf')
+    best_labels = []
+    best_centroids = None
+    for _ in range(nrep):
+        centroids = kmeans_plusplus(X, k)  # find your initial centroids
+        old_labels = np.zeros((X.shape[0],1))
+        for _ in range(itermax):
+            dist_to_centroids = np.array([np.linalg.norm(X[x] - centroids, axis=1) for x in range(X.shape[0])])
+            labels = np.argmin(dist_to_centroids, axis=1)
+            if np.linalg.norm(labels - old_labels) == 0:
+                break
+            for c in range(centroids.shape[0]):
+                pts = np.where(labels == c)
+                centroids[c] = np.mean(X[pts], axis=0)
+            old_labels = labels
+        within_cluster_dist = np.linalg.norm(X - centroids[labels])
+        if within_cluster_dist < best_distance:
+            best_distance = within_cluster_dist
+            best_labels = labels
+            best_centroids = centroids
+    return best_labels, best_centroids
 
 def cmeans(X, k, m=2, itermax=300):
     num_pts, num_dims = X.shape;
@@ -216,7 +249,7 @@ def L(A, normalized=False):
 #     return L
 
 
-def SC(L, k, psi=None, itermax=300):
+def SC(L, k, alg=cmeans, thresh=None, psi=None, itermax=300):
     """SC: Perform spectral clustering 
             via the Ng method
     Args:
@@ -237,5 +270,8 @@ def SC(L, k, psi=None, itermax=300):
 
     # normalize your eigenvector rows
     psi_k /= np.linalg.norm(psi_k, axis=1)[:,None]
-    labels = cmeans(psi_k, k, itermax)
+    if thresh is None:
+        labels = alg(psi_k, k, itermax=itermax)
+    else:
+        labels = alg(psi_k, k, thresh=thresh, itermax=itermax)
     return labels
